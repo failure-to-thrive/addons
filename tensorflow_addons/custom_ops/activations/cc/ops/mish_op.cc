@@ -33,5 +33,12 @@ REGISTER_OP("Addons>MishGrad")
     .Attr("T: {half, float, double}")
     .SetShapeFn(shape_inference::MergeBothInputsShapeFn);
 
+REGISTER_OP("Addons>MishGradGrad")
+    .Input("gradients: T")
+    .Input("features: T")
+    .Output("backprops: T")
+    .Attr("T: {half, float, double}")
+    .SetShapeFn(shape_inference::MergeBothInputsShapeFn);
+
 }  // namespace addons
 }  // namespace tensorflow

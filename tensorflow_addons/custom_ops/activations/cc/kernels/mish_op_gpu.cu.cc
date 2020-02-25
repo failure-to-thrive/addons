@@ -28,7 +28,8 @@ using GPUDevice = Eigen::GpuDevice;
 
 #define DEFINE_GPU_KERNELS(T)                  \
   template struct functor::Mish<GPUDevice, T>; \
-  template struct functor::MishGrad<GPUDevice, T>;
+  template struct functor::MishGrad<GPUDevice, T>; \
+  template struct functor::MishGradGrad<GPUDevice, T>;
 
 TF_CALL_GPU_NUMBER_TYPES(DEFINE_GPU_KERNELS);
 

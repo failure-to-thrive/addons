@@ -32,7 +32,10 @@ using CPUDevice = Eigen::ThreadPoolDevice;
       MishOp<CPUDevice, type>);                                             \
   REGISTER_KERNEL_BUILDER(                                                  \
       Name("Addons>MishGrad").Device(DEVICE_CPU).TypeConstraint<type>("T"), \
-      MishGradOp<CPUDevice, type>);
+      MishGradOp<CPUDevice, type>);                                         \
+  REGISTER_KERNEL_BUILDER(                                                  \
+      Name("Addons>MishGradGrad").Device(DEVICE_CPU).TypeConstraint<type>("T"), \
+      MishGradGradOp<CPUDevice, type>);
 
 // Mish only makes sense with floating points.
 TF_CALL_GPU_NUMBER_TYPES(REGISTER_MISH_KERNELS);
@@ -56,7 +59,14 @@ namespace functor {
       const GPUDevice& d, typename TTypes<T>::ConstTensor gradients, \
       typename TTypes<T>::ConstTensor features,                      \
       typename TTypes<T>::Tensor backprops);                         \
-  extern template struct MishGrad<GPUDevice, T>;
+  extern template struct MishGrad<GPUDevice, T>;                     \
+                                                                     \
+  template <>                                                        \
+  void MishGradGrad<GPUDevice, T>::operator()(                       \
+      const GPUDevice& d, typename TTypes<T>::ConstTensor gradients, \
+      typename TTypes<T>::ConstTensor features,                      \
+      typename TTypes<T>::Tensor backprops);                         \
+  extern template struct MishGradGrad<GPUDevice, T>;
 
 TF_CALL_GPU_NUMBER_TYPES(DECLARE_GPU_SPEC);
 #undef DECLARE_GPU_SPEC
@@ -69,7 +79,10 @@ TF_CALL_GPU_NUMBER_TYPES(DECLARE_GPU_SPEC);
       MishOp<GPUDevice, type>);                                             \
   REGISTER_KERNEL_BUILDER(                                                  \
       Name("Addons>MishGrad").Device(DEVICE_GPU).TypeConstraint<type>("T"), \
-      MishGradOp<GPUDevice, type>);
+      MishGradOp<GPUDevice, type>);                                         \
+  REGISTER_KERNEL_BUILDER(                                                  \
+      Name("Addons>MishGradGrad").Device(DEVICE_GPU).TypeConstraint<type>("T"), \
+      MishGradGradOp<GPUDevice, type>);
 
 TF_CALL_GPU_NUMBER_TYPES(REGISTER_MISH_GPU_KERNELS);
 #undef REGISTER_MISH_GPU_KERNELS

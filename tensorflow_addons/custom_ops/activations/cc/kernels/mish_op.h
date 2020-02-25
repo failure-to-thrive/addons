@@ -81,6 +81,37 @@ struct MishGrad {
   }
 };
 
+// Functor used by MishGradGradOp to do the computations.
+template <typename Device, typename T>
+struct MishGradGrad {
+  // Computes MishGradGrad backprops.
+  //
+  // gradients: gradients backpropagated to the Mish op.
+  // features: inputs that were passed to the Mish op.
+  // backprops: gradients to backpropagate to the Mish inputs.
+  void operator()(const Device& d, typename TTypes<T>::ConstTensor gradients,
+                  typename TTypes<T>::ConstTensor features,
+                  typename TTypes<T>::Tensor backprops) {
+    // softplus implementation
+    // https://github.com/tensorflow/tensorflow/blob/master/tensorflow/core/kernels/softplus_op.h
+    static const T threshold =
+        Eigen::numext::log(Eigen::NumTraits<T>::epsilon()) + T(2);
+    const auto& too_large = features > features.constant(-threshold);
+    const auto& too_small = features < features.constant(threshold);
+    const auto& features_exp = features.exp();
+    const auto& sp = too_large.select(
+        features,
+        too_small.select(features_exp,
+                         (features_exp + features.constant(T(1))).log()));
+
+    const auto& grad_sp = static_cast<T>(1) - (-sp).exp();
+    const auto& tsp = sp.tanh();
+    const auto& grad_tsp = ((static_cast<T>(1) - tsp * tsp) * grad_sp);
+    const auto& grad_grad = grad_tsp * (static_cast<T>(2) + features * (static_cast<T>(1) - grad_sp * (static_cast<T>(2) * tsp + static_cast<T>(1))));
+    backprops.device(d) = gradients * grad_grad;
+  }
+};
+
 }  // namespace functor
 
 template <typename Device, typename T>
@@ -118,6 +149,32 @@ void MishGradOp<Device, T>::OperateNoTemplate(OpKernelContext* context,
                                               const Tensor& g, const Tensor& a,
                                               Tensor* output) {
   functor::MishGrad<Device, T> functor;
+  functor(context->eigen_device<Device>(), g.flat<T>(), a.flat<T>(),
+          output->flat<T>());
+}
+
+template <typename Device, typename T>
+class MishGradGradOp : public BinaryElementWiseOp<T, MishGradGradOp<Device, T>> {
+ public:
+  explicit MishGradGradOp(OpKernelConstruction* context)
+      : BinaryElementWiseOp<T, MishGradGradOp<Device, T>>::BinaryElementWiseOp(
+            context) {}
+
+  void OperateNoTemplate(OpKernelContext* context, const Tensor& g,
+                         const Tensor& a, Tensor* output);
+
+  template <int NDIMS>
+  void Operate(OpKernelContext* context, const Tensor& g, const Tensor& a,
+               Tensor* output) {
+    OperateNoTemplate(context, g, a, output);
+  }
+};
+
+template <typename Device, typename T>
+void MishGradGradOp<Device, T>::OperateNoTemplate(OpKernelContext* context,
+                                              const Tensor& g, const Tensor& a,
+                                              Tensor* output) {
+  functor::MishGradGrad<Device, T> functor;
   functor(context->eigen_device<Device>(), g.flat<T>(), a.flat<T>(),
           output->flat<T>());
 }

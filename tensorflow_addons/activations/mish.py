@@ -44,5 +44,10 @@ def _mish_grad(op, grad):
     return _activation_so.ops.addons_mish_grad(grad, op.inputs[0])
 
 
+@tf.RegisterGradient("Addons>MishGrad")
+def _mish_grad_grad(op, grad):
+    return None, _activation_so.ops.addons_mish_grad_grad(grad, op.inputs[1])
+
+
 def _mish_py(x):
     return x * tf.math.tanh(tf.math.softplus(x))
